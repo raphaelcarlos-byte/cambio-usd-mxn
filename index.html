@@ -539,6 +539,38 @@
   </section>
 
   <section class="panel">
+    <h2>Conversor por data</h2>
+    <p class="panel-sub" id="histConverterSub">Escolha uma data para converter usando a cotação daquele dia.</p>
+    <div class="field" style="max-width:220px;margin-bottom:14px;">
+      <label for="histDateInput">Data</label>
+      <div class="input-wrap"><input type="date" id="histDateInput" autocomplete="off"></div>
+      <div class="stat-caption" id="histDateNote" style="margin-top:6px;"></div>
+    </div>
+    <div class="converter">
+      <div class="field">
+        <label id="histFromLabel" for="histFromInput">Dólar (USD)</label>
+        <div class="input-wrap">
+          <span id="histFromPrefix">US$</span>
+          <input id="histFromInput" inputmode="decimal" value="1" autocomplete="off">
+        </div>
+      </div>
+      <button class="swap-btn" id="histSwapBtn" type="button" aria-label="Inverter direção da conversão" title="Inverter direção">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M2 5.5H12.5M12.5 5.5L9.5 2.5M12.5 5.5L9.5 8.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M14 10.5H3.5M3.5 10.5L6.5 13.5M3.5 10.5L6.5 7.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <div class="field">
+        <label id="histToLabel" for="histToInput">Peso mexicano (MXN)</label>
+        <div class="input-wrap">
+          <span id="histToPrefix">MX$</span>
+          <input id="histToInput" inputmode="decimal" autocomplete="off">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel">
     <h2>Consultar por período</h2>
     <p class="panel-sub">Filtre por ano ou busque uma data específica para ver a média, a maior, a menor e a cotação atual.</p>
 
@@ -696,6 +728,86 @@
 
   applyLabels();
   recompute(true);
+
+  // Conversor por data
+  var histDateInput = document.getElementById('histDateInput');
+  var histDateNote = document.getElementById('histDateNote');
+  var histFromInput = document.getElementById('histFromInput');
+  var histToInput = document.getElementById('histToInput');
+  var histFromLabel = document.getElementById('histFromLabel');
+  var histToLabel = document.getElementById('histToLabel');
+  var histFromPrefix = document.getElementById('histFromPrefix');
+  var histToPrefix = document.getElementById('histToPrefix');
+  var histSwapBtn = document.getElementById('histSwapBtn');
+  var histDirection = 'usd-to-mxn';
+  var histRate = rate;
+
+  histDateInput.min = history[0].date;
+  histDateInput.max = history[history.length - 1].date;
+  histDateInput.value = last.date;
+
+  function findRateForDate(val) {
+    var exact = history.filter(function (p) { return p.date === val; })[0];
+    if (exact) return exact;
+    var prior = history.filter(function (p) { return p.date < val; });
+    return prior.length ? prior[prior.length - 1] : history[0];
+  }
+
+  function updateHistRate() {
+    var val = histDateInput.value;
+    if (!val) { val = last.date; histDateInput.value = val; }
+    var point = findRateForDate(val);
+    histRate = point.rate;
+    if (point.date === val) {
+      histDateNote.textContent = 'Cotação de ' + formatDate(point.date, 'shortYear') + ': ' + fmt(point.rate, 4) + ' MXN por USD.';
+    } else {
+      histDateNote.textContent = 'Sem cotação em ' + formatDate(val, 'shortYear') + ' (fim de semana, feriado ou fora do período coletado). Usando a mais próxima — ' + formatDate(point.date, 'shortYear') + ': ' + fmt(point.rate, 4) + ' MXN por USD.';
+    }
+  }
+
+  function histRecompute(editedFrom) {
+    var f = parseNum(histFromInput.value);
+    var r = histDirection === 'usd-to-mxn' ? histRate : 1 / histRate;
+    if (editedFrom) {
+      histToInput.value = fmt(f * r, 2);
+    } else {
+      var t = parseNum(histToInput.value);
+      histFromInput.value = fmt(t / r, 2);
+    }
+  }
+
+  function histApplyLabels() {
+    if (histDirection === 'usd-to-mxn') {
+      histFromLabel.textContent = 'Dólar (USD)';
+      histToLabel.textContent = 'Peso mexicano (MXN)';
+      histFromPrefix.textContent = 'US$';
+      histToPrefix.textContent = 'MX$';
+    } else {
+      histFromLabel.textContent = 'Peso mexicano (MXN)';
+      histToLabel.textContent = 'Dólar (USD)';
+      histFromPrefix.textContent = 'MX$';
+      histToPrefix.textContent = 'US$';
+    }
+  }
+
+  histDateInput.addEventListener('change', function () {
+    updateHistRate();
+    histRecompute(true);
+  });
+  histFromInput.addEventListener('input', function () { histRecompute(true); });
+  histToInput.addEventListener('input', function () { histRecompute(false); });
+  histSwapBtn.addEventListener('click', function () {
+    histDirection = histDirection === 'usd-to-mxn' ? 'mxn-to-usd' : 'usd-to-mxn';
+    histApplyLabels();
+    var histKeep = histFromInput.value;
+    histFromInput.value = histToInput.value || '1';
+    histToInput.value = histKeep;
+    histRecompute(true);
+  });
+
+  updateHistRate();
+  histApplyLabels();
+  histRecompute(true);
 
   // ---- Filtro por período (ano / data) + estatísticas ----
   var yearSelect = document.getElementById('yearFilter');
