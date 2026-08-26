@@ -1,0 +1,1 @@
+Câmbio USD/MXN
