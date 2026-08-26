@@ -1,0 +1,33 @@
+name: Atualizar câmbio USD/MXN
+
+on:
+  schedule:
+    # 11:30 UTC = 08:30 America/Sao_Paulo
+    - cron: '30 11 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Buscar cotação mais recente e atualizar página
+        env:
+          BANXICO_TOKEN: ${{ secrets.BANXICO_TOKEN }}
+        run: python3 scripts/update_rate.py
+
+      - name: Commitar alterações (se houver)
+        run: |
+          git config user.name "cambio-bot"
+          git config user.email "actions@github.com"
+          if git diff --quiet; then
+            echo "Nada para commitar."
+          else
+            git add data.json index.html
+            git commit -m "Atualiza cotação USD/MXN $(date -u +%Y-%m-%d)"
+            git push
+          fi
