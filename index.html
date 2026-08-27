@@ -268,6 +268,13 @@
     font-weight: 500;
   }
 
+  .field-hint {
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: 400;
+    opacity: 0.75;
+  }
+
   .field .input-wrap {
     display: flex;
     align-items: center;
@@ -314,6 +321,16 @@
   }
 
   .field select:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  .field select[multiple] { padding: 4px; }
+  .field select[multiple] option {
+    padding: 6px 8px;
+    border-radius: 5px;
+  }
+  .field select[multiple] option:checked {
+    background: var(--accent-soft);
+    color: var(--ink);
+  }
 
   .filter-row {
     display: flex;
@@ -576,12 +593,12 @@
 
     <div class="filter-row">
       <div class="field">
-        <label for="yearFilter">Ano</label>
-        <div class="input-wrap"><select id="yearFilter"></select></div>
+        <label for="yearFilter">Ano <span class="field-hint">(Ctrl/Cmd + clique para mais de um)</span></label>
+        <div class="input-wrap"><select id="yearFilter" multiple size="5"></select></div>
       </div>
       <div class="field">
-        <label for="monthFilter">Mês</label>
-        <div class="input-wrap"><select id="monthFilter"></select></div>
+        <label for="monthFilter">Mês <span class="field-hint">(Ctrl/Cmd + clique para mais de um)</span></label>
+        <div class="input-wrap"><select id="monthFilter" multiple size="6"></select></div>
       </div>
     </div>
 
@@ -844,16 +861,31 @@
   yearSelect.value = last.date.slice(0, 4);
   monthSelect.value = last.date.slice(5, 7);
 
-  function subsetForPeriod(year, month) {
+  function selectedValues(select) {
+    return Array.prototype.map.call(select.selectedOptions, function (o) { return o.value; });
+  }
+
+  function subsetForPeriod(years, months) {
+    var allYears = !years.length || years.indexOf('') !== -1;
+    var allMonths = !months.length || months.indexOf('') !== -1;
     return history.filter(function (p) {
-      if (year && p.date.slice(0, 4) !== year) return false;
-      if (month && p.date.slice(5, 7) !== month) return false;
+      if (!allYears && years.indexOf(p.date.slice(0, 4)) === -1) return false;
+      if (!allMonths && months.indexOf(p.date.slice(5, 7)) === -1) return false;
       return true;
     });
   }
 
-  function renderStats(year, month) {
-    var subset = subsetForPeriod(year, month);
+  function periodLabelText(years, months) {
+    var allYears = !years.length || years.indexOf('') !== -1;
+    var allMonths = !months.length || months.indexOf('') !== -1;
+    var yearsText = allYears ? 'todos os anos' : years.slice().sort().join(', ');
+    if (allMonths) return 'em ' + yearsText;
+    var monthsText = months.slice().sort().map(function (m) { return MONTH_NAMES[parseInt(m, 10) - 1]; }).join(', ');
+    return 'em ' + monthsText + (allYears ? '' : ' de ' + yearsText);
+  }
+
+  function renderStats(years, months) {
+    var subset = subsetForPeriod(years, months);
     if (!subset.length) subset = history;
     var rates = subset.map(function (p) { return p.rate; });
     var avg = rates.reduce(function (a, b) { return a + b; }, 0) / rates.length;
@@ -868,20 +900,15 @@
     document.getElementById('statCurrent').textContent = fmt(rate, 4);
     document.getElementById('statCurrentCaption').textContent = 'em ' + formatDate(last.date, true);
 
-    var label = subset.length + (subset.length === 1 ? ' cotação registrada' : ' cotações registradas');
-    if (month) {
-      label += ' em ' + MONTH_NAMES[parseInt(month, 10) - 1] + (year ? ' de ' + year : '');
-    } else if (year) {
-      label += ' em ' + year;
-    } else {
-      label += ' no total';
-    }
+    var label = subset.length + (subset.length === 1 ? ' cotação registrada ' : ' cotações registradas ') + periodLabelText(years, months);
     document.getElementById('statPeriodLabel').textContent = label + '. Todos os valores em MXN por USD.';
   }
 
   function updatePeriodView() {
-    renderStats(yearSelect.value, monthSelect.value);
-    renderChart(subsetForPeriod(yearSelect.value, monthSelect.value));
+    var years = selectedValues(yearSelect);
+    var months = selectedValues(monthSelect);
+    renderStats(years, months);
+    renderChart(subsetForPeriod(years, months));
   }
 
   yearSelect.addEventListener('change', updatePeriodView);
@@ -1031,7 +1058,7 @@
     figure.addEventListener('pointerleave', hideHover);
   }
 
-  renderStats(yearSelect.value, monthSelect.value);
-  renderChart(subsetForPeriod(yearSelect.value, monthSelect.value));
+  renderStats(selectedValues(yearSelect), selectedValues(monthSelect));
+  renderChart(subsetForPeriod(selectedValues(yearSelect), selectedValues(monthSelect)));
 })();
 </script>
