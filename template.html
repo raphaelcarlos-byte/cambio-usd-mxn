@@ -572,7 +572,7 @@
 
   <section class="panel">
     <h2>Consultar por período</h2>
-    <p class="panel-sub">Filtre por ano ou busque uma data específica para ver a média, a maior, a menor e a cotação atual.</p>
+    <p class="panel-sub">Filtre por ano e mês para ver a média, a maior e a menor cotação do período selecionado.</p>
 
     <div class="filter-row">
       <div class="field">
@@ -580,11 +580,10 @@
         <div class="input-wrap"><select id="yearFilter"></select></div>
       </div>
       <div class="field">
-        <label for="dateLookup">Consultar uma data</label>
-        <div class="input-wrap"><input type="date" id="dateLookup" autocomplete="off"></div>
+        <label for="monthFilter">Mês</label>
+        <div class="input-wrap"><select id="monthFilter"></select></div>
       </div>
     </div>
-    <p class="lookup-result" id="lookupResult"></p>
 
     <div class="stat-grid">
       <div class="stat-tile">
@@ -615,7 +614,7 @@
       <h2 style="margin-bottom:0;">Histórico &mdash; USD/MXN</h2>
       <div class="chart-stats" id="chartStats"></div>
     </div>
-    <p class="panel-sub">Cotação FIX diária publicada pelo Diário Oficial da Federação (México). O gráfico acompanha o ano selecionado acima.</p>
+    <p class="panel-sub">Cotação FIX diária publicada pelo Diário Oficial da Federação (México). O gráfico acompanha o ano e o mês selecionados acima.</p>
     <div class="chart-wrap" id="chartWrap"></div>
   </section>
 
@@ -809,10 +808,10 @@
   histApplyLabels();
   histRecompute(true);
 
-  // ---- Filtro por período (ano / data) + estatísticas ----
+  // ---- Filtro por período (ano / mês) + estatísticas ----
   var yearSelect = document.getElementById('yearFilter');
-  var dateLookup = document.getElementById('dateLookup');
-  var lookupResult = document.getElementById('lookupResult');
+  var monthSelect = document.getElementById('monthFilter');
+  var MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
   var years = [];
   history.forEach(function (p) {
     var y = p.date.slice(0, 4);
@@ -830,17 +829,27 @@
     o.textContent = y;
     yearSelect.appendChild(o);
   });
-  yearSelect.value = years[0] || '';
 
-  dateLookup.min = history[0].date;
-  dateLookup.max = history[history.length - 1].date;
+  MONTH_NAMES.forEach(function (name, i) {
+    var o = document.createElement('option');
+    o.value = String(i + 1).padStart(2, '0');
+    o.textContent = name;
+    monthSelect.appendChild(o);
+  });
 
-  function subsetForYear(year) {
-    return year ? history.filter(function (p) { return p.date.slice(0, 4) === year; }) : history;
+  yearSelect.value = last.date.slice(0, 4);
+  monthSelect.value = last.date.slice(5, 7);
+
+  function subsetForPeriod(year, month) {
+    return history.filter(function (p) {
+      if (year && p.date.slice(0, 4) !== year) return false;
+      if (month && p.date.slice(5, 7) !== month) return false;
+      return true;
+    });
   }
 
-  function renderStats(year) {
-    var subset = subsetForYear(year);
+  function renderStats(year, month) {
+    var subset = subsetForPeriod(year, month);
     if (!subset.length) subset = history;
     var rates = subset.map(function (p) { return p.rate; });
     var avg = rates.reduce(function (a, b) { return a + b; }, 0) / rates.length;
@@ -855,28 +864,24 @@
     document.getElementById('statCurrent').textContent = fmt(rate, 4);
     document.getElementById('statCurrentCaption').textContent = 'em ' + formatDate(last.date, true);
 
-    var label = subset.length + (subset.length === 1 ? ' cotação' : ' cotações');
-    label += year ? (' registradas em ' + year) : ' registradas no total';
+    var label = subset.length + (subset.length === 1 ? ' cotação registrada' : ' cotações registradas');
+    if (month) {
+      label += ' em ' + MONTH_NAMES[parseInt(month, 10) - 1] + (year ? ' de ' + year : '');
+    } else if (year) {
+      label += ' em ' + year;
+    } else {
+      label += ' no total';
+    }
     document.getElementById('statPeriodLabel').textContent = label + '. Todos os valores em MXN por USD.';
   }
 
-  function runLookup(val) {
-    if (!val) { lookupResult.innerHTML = ''; return; }
-    var exact = history.filter(function (p) { return p.date === val; })[0];
-    if (exact) {
-      lookupResult.innerHTML = 'Cotação em <b>' + formatDate(exact.date) + '</b>: <b>' + fmt(exact.rate, 4) + '</b> MXN por USD.';
-      return;
-    }
-    var prior = history.filter(function (p) { return p.date < val; });
-    var nearest = prior.length ? prior[prior.length - 1] : history[0];
-    lookupResult.innerHTML = 'Sem cotação publicada em ' + formatDate(val) + ' (fim de semana, feriado ou fora do período coletado). Mais próxima disponível — <b>' + formatDate(nearest.date) + '</b>: <b>' + fmt(nearest.rate, 4) + '</b> MXN por USD.';
+  function updatePeriodView() {
+    renderStats(yearSelect.value, monthSelect.value);
+    renderChart(subsetForPeriod(yearSelect.value, monthSelect.value));
   }
 
-  yearSelect.addEventListener('change', function () {
-    renderStats(yearSelect.value);
-    renderChart(subsetForYear(yearSelect.value));
-  });
-  dateLookup.addEventListener('change', function () { runLookup(dateLookup.value); });
+  yearSelect.addEventListener('change', updatePeriodView);
+  monthSelect.addEventListener('change', updatePeriodView);
 
   // ---- Gráfico ----
   var chartWrap = document.getElementById('chartWrap');
@@ -912,7 +917,7 @@
     if (points.length < 2) {
       chartWrap.innerHTML = '<p class="chart-empty">' + (history.length < 2
         ? 'O histórico começa a partir de hoje e crescerá a cada atualização diária.'
-        : 'Apenas uma cotação registrada neste período.') + '</p>';
+        : (points.length === 0 ? 'Nenhuma cotação registrada neste período.' : 'Apenas uma cotação registrada neste período.')) + '</p>';
       chartStats.innerHTML = '<span>' + points.length + ' ponto' + (points.length === 1 ? '' : 's') + '</span>';
       return;
     }
@@ -1022,7 +1027,7 @@
     figure.addEventListener('pointerleave', hideHover);
   }
 
-  renderStats(yearSelect.value);
-  renderChart(subsetForYear(yearSelect.value));
+  renderStats(yearSelect.value, monthSelect.value);
+  renderChart(subsetForPeriod(yearSelect.value, monthSelect.value));
 })();
 </script>
