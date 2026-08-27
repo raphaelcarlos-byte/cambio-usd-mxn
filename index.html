@@ -692,11 +692,13 @@
   function recompute(editedFrom) {
     var f = parseNum(fromInput.value);
     var r = direction === 'usd-to-mxn' ? rate : 1 / rate;
+    var toDigits = direction === 'usd-to-mxn' ? 4 : 2;
+    var fromDigits = direction === 'usd-to-mxn' ? 2 : 4;
     if (editedFrom) {
-      toInput.value = fmt(f * r, 2);
+      toInput.value = fmt(f * r, toDigits);
     } else {
       var t = parseNum(toInput.value);
-      fromInput.value = fmt(t / r, 2);
+      fromInput.value = fmt(t / r, fromDigits);
     }
   }
 
@@ -767,11 +769,13 @@
   function histRecompute(editedFrom) {
     var f = parseNum(histFromInput.value);
     var r = histDirection === 'usd-to-mxn' ? histRate : 1 / histRate;
+    var toDigits = histDirection === 'usd-to-mxn' ? 4 : 2;
+    var fromDigits = histDirection === 'usd-to-mxn' ? 2 : 4;
     if (editedFrom) {
-      histToInput.value = fmt(f * r, 2);
+      histToInput.value = fmt(f * r, toDigits);
     } else {
       var t = parseNum(histToInput.value);
-      histFromInput.value = fmt(t / r, 2);
+      histFromInput.value = fmt(t / r, fromDigits);
     }
   }
 
