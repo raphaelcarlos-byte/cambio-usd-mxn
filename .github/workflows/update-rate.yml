@@ -2,8 +2,8 @@ name: Atualizar câmbio USD/MXN
 
 on:
   schedule:
-    # 11:30 UTC = 08:30 America/Sao_Paulo
-    - cron: '30 11 * * *'
+    # 12:00 UTC = 09:00 America/Sao_Paulo
+    - cron: '0 12 * * *'
   workflow_dispatch: {}
 
 permissions:
