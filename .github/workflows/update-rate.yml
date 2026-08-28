@@ -2,8 +2,8 @@ name: Atualizar câmbio USD/MXN
 
 on:
   schedule:
-    # 12:00 UTC = 09:00 America/Sao_Paulo
-    - cron: '0 12 * * *'
+    # 12:07 UTC = 09:07 America/Sao_Paulo (fora do topo da hora, evita congestionamento do agendador do GitHub)
+    - cron: '7 12 * * *'
   workflow_dispatch: {}
 
 permissions:
