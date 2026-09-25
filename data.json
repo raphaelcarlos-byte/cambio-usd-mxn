@@ -3423,5 +3423,10 @@
     "date": "2026-09-24",
     "rate": 17.503,
     "source": "banxico"
+  },
+  {
+    "date": "2026-09-25",
+    "rate": 17.6425,
+    "source": "banxico"
   }
 ]
